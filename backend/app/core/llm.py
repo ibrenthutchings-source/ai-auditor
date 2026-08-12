@@ -17,18 +17,43 @@ MAX_FIX_ATTEMPTS = 2
 
 @lru_cache(maxsize=1)
 def get_chat_model() -> BaseChatModel:
-    """Phase 1: OpenAI-compatible model to validate graph/parsing logic.
-    Phase 2 swaps this for ChatOllama against the private Railway service
-    without touching agent code, since callers only depend on BaseChatModel.
+    """Provider is `settings.LLM_PROVIDER` if set, else the first of
+    openai/anthropic/gemini with an API key present, else local Ollama
+    (Phase 2, Railway private network). All branches return a plain
+    BaseChatModel, so agent code never depends on which one is active.
     """
-    if settings.OPENAI_API_KEY:
+    provider = settings.LLM_PROVIDER or _infer_provider()
+
+    if provider == "openai":
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(model=settings.OPENAI_MODEL, api_key=settings.OPENAI_API_KEY, temperature=0)
 
+    if provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        # Claude Sonnet 5 / Opus 5 reject non-default temperature/top_p/top_k
+        # with a 400 -- omit sampling params rather than pinning temperature=0.
+        return ChatAnthropic(model=settings.ANTHROPIC_MODEL, api_key=settings.ANTHROPIC_API_KEY)
+
+    if provider == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(model=settings.GEMINI_MODEL, google_api_key=settings.GOOGLE_API_KEY, temperature=0)
+
     from langchain_ollama import ChatOllama
 
     return ChatOllama(model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL, temperature=0)
+
+
+def _infer_provider() -> str:
+    if settings.OPENAI_API_KEY:
+        return "openai"
+    if settings.ANTHROPIC_API_KEY:
+        return "anthropic"
+    if settings.GOOGLE_API_KEY:
+        return "gemini"
+    return "ollama"
 
 
 def invoke_structured(
