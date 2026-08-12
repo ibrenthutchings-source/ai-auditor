@@ -14,6 +14,12 @@ class AuditFinding(BaseModel):
     raw_evidence: str = Field(description="Snippets of logs or prompts proving the issue")
 
 
+class FindingsResult(BaseModel):
+    """Wrapper so the LLM can return zero or more findings as one structured object."""
+
+    findings: List[AuditFinding] = Field(default_factory=list)
+
+
 class Recommendation(BaseModel):
     finding_reference: str = Field(description="Short summary of the finding this addresses")
     fix_type: FixType = Field(description="Category of remediation")

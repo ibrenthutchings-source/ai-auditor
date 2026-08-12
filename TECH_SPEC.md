@@ -9,7 +9,7 @@ Backend / Orchestration: Python 3.11+, FastAPI, LangGraph (for state-machine age
 
 Local LLM Serving (Railway Private Service): Ollama running custom quantized Llama 3.1 8B models. The service is exposed only to the internal Railway network (private networking is configured via the Railway project/service settings, not a static `railway.toml` block — see Section 6).
 
-Structured output reliability: Because an 8B quantized model will not reliably emit valid nested JSON on the first try, all agent output must go through `PydanticOutputParser` wrapped in LangChain's `OutputFixingParser` (retry-with-error-feedback), from Phase 1 onward — not bolted on later once real local-model output starts failing validation.
+Structured output reliability: Because an 8B quantized model will not reliably emit valid nested JSON on the first try, all agent output goes through `PydanticOutputParser` with a retry-with-error-feedback loop: on a parse/validation failure, the raw output and the parser's own error are fed back to the model with a request to correct it (implemented in `backend/app/core/llm.py::invoke_structured`, capped at `MAX_FIX_ATTEMPTS`). This is hand-rolled against `langchain-core` rather than LangChain's old `OutputFixingParser`, which as of `langchain` 1.x moved into the deprecated `langchain-classic` package — pulling that in for one retry loop wasn't worth the dependency. This has been live since Phase 1, not deferred to Phase 2.
 
 Database: PostgreSQL with pgvector. Scope for MVP: pgvector is used specifically for similarity retrieval of past findings inside `bias_evaluator_node` and `security_evaluator_node` (RAG over prior audit findings). If that retrieval isn't wired into the graph, pgvector should not be added as a dependency yet — don't carry an unused vector store.
 
@@ -187,7 +187,7 @@ In your FastAPI/LangChain backend (`backend/app/core/config.py`), set the LLM Ba
 
 - Initialize the Python environment and install dependencies (`langchain`, `langgraph`, `fastapi`, `pydantic`).
 - Create the Pydantic schemas in `schemas.py`.
-- Build a basic LangGraph using standard OpenAI-compatible models just to verify the parallel node execution and state updating logic works, with output already routed through `PydanticOutputParser` (not deferred to Phase 2), so the parsing failure mode is caught early with a cheap, reliable model before local 8B inference is in the loop.
+- Build a basic LangGraph using standard OpenAI-compatible models just to verify the parallel node execution and state updating logic works, with output already routed through `PydanticOutputParser` (not deferred to Phase 2), so the parsing failure mode is caught early with a cheap, reliable model before local 8B inference is in the loop. **Done**: `bias_evaluator_node`, `security_evaluator_node`, and `hitl_evaluator_node` each run a deterministic pre-filter (regex/stats) plus an LLM structured-output pass via `run_structured_findings`; LLM failures are caught and appended to `errors` rather than crashing the graph (verified via `FakeListChatModel` substitution, since no `OPENAI_API_KEY` was available in this environment — an actual key is still needed to validate real model behavior/latency/cost before Phase 2).
 
 ### Phase 2: Railway Infrastructure & Local Models
 

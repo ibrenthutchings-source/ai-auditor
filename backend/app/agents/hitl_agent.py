@@ -1,13 +1,17 @@
 from app.core.config import settings
+from app.core.llm import run_structured_findings
 from app.graph.state import GraphState
 from app.models.schemas import AuditFinding
 
 SYSTEM_PROMPT = (
     "You are an AI Governance Auditor specializing in Human-in-the-Loop "
-    "compliance. Analyze the user interaction logs. Calculate the human "
-    "override rate and time-to-approve. If both fall below the configured "
-    "thresholds for the current regulatory context, flag this as "
-    "'Automation Bias / Rubber-Stamping'."
+    "compliance. You are given pre-computed approval-rate and "
+    "time-to-approve statistics plus the raw review logs. Look for "
+    "qualitative rubber-stamping signals the numbers alone might miss "
+    "(e.g. identical or boilerplate justification text across reviews). "
+    "Report the agent_name as 'HITL Agent'. Do not re-flag the exact "
+    "threshold breach already computed for you -- only report additional "
+    "signal. Return an empty findings list if there is none."
 )
 
 
@@ -32,6 +36,9 @@ def hitl_evaluator_node(state: GraphState) -> dict:
     )
 
     findings: list[AuditFinding] = []
+    errors: list[str] = []
+
+    # Deterministic pass: the compliance-critical, precisely-thresholded check.
     if avg_time is not None and approval_rate >= max_rate and avg_time <= max_seconds:
         findings.append(
             AuditFinding(
@@ -45,4 +52,15 @@ def hitl_evaluator_node(state: GraphState) -> dict:
                 raw_evidence=f"{len(approved)}/{len(approvals)} approved, avg_time={avg_time:.2f}s",
             )
         )
-    return {"findings": findings}
+
+    # LLM pass: supplementary qualitative signal (see SYSTEM_PROMPT).
+    evidence = (
+        f"approval_rate={approval_rate:.2f}, avg_time_to_approve={avg_time}, "
+        f"threshold_rate={max_rate}, threshold_seconds={max_seconds}\nlogs={approvals}"
+    )
+    llm_findings, error = run_structured_findings(SYSTEM_PROMPT, evidence=evidence)
+    findings.extend(llm_findings)
+    if error:
+        errors.append(f"hitl_evaluator_node: {error}")
+
+    return {"findings": findings, "errors": errors}
