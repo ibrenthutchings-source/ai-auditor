@@ -1,0 +1,9 @@
+[build]
+dockerfilePath = "infra/Dockerfile.ollama"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+
+# Persistent volume (/root/.ollama) and private networking are provisioned
+# as real Railway resources (dashboard or Railway MCP `create_volume`),
+# not declared here -- see TECH_SPEC.md Section 6.
