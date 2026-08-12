@@ -8,7 +8,7 @@ load_dotenv()
 class Settings:
     # Local LLM (Railway private network, see infra/railway.toml)
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama.railway.internal:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
 
     # Explicit override: "openai" | "anthropic" | "gemini" | "ollama".
     # If unset, get_chat_model() picks the first provider with a key set,

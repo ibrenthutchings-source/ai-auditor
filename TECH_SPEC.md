@@ -7,7 +7,7 @@ Goal: Build the MVP of an automated, multi-agent AI governance platform orchestr
 
 Backend / Orchestration: Python 3.11+, FastAPI, LangGraph (for state-machine agent routing), LangChain (for agent tool calling).
 
-Local LLM Serving (Railway Private Service): Ollama running custom quantized Llama 3.1 8B models. The service is exposed only to the internal Railway network (private networking is configured via the Railway project/service settings, not a static `railway.toml` block — see Section 6).
+Local LLM Serving (Railway Private Service): Ollama running `llama3.2:3b`. The service is exposed only to the internal Railway network (private networking is configured via the Railway project/service settings, not a static `railway.toml` block — see Section 6). **Deployed and running** as of this writing (project `ai-auditor-council`, service `ollama`) — see Section 7, Phase 2. Originally scoped as Llama 3.1 8B; switched to the smaller 3b model because Railway's default volume is 5GB and resize is dashboard-only (not exposed via CLI or GraphQL API) — the 8B model (~4.9GB) left no headroom for the download's temp/partial blobs and the pull failed with `ENOSPC` at 88%. 3b (~2GB) fits comfortably. Revisit the larger model only alongside a manual volume resize in the dashboard.
 
 Structured output reliability: Because an 8B quantized model will not reliably emit valid nested JSON on the first try, all agent output goes through `PydanticOutputParser` with a retry-with-error-feedback loop: on a parse/validation failure, the raw output and the parser's own error are fed back to the model with a request to correct it (implemented in `backend/app/core/llm.py::invoke_structured`, capped at `MAX_FIX_ATTEMPTS`). This is hand-rolled against `langchain-core` rather than LangChain's old `OutputFixingParser`, which as of `langchain` 1.x moved into the deprecated `langchain-classic` package — pulling that in for one retry loop wasn't worth the dependency. This has been live since Phase 1, not deferred to Phase 2.
 
@@ -119,7 +119,7 @@ Tools/Functions: `calculate_time_to_approve`, `query_user_cohort_history`
 
 ## 6. Railway Deployment & Local LLM Hosting
 
-AI Coder Instruction: Use these configurations to deploy the private Ollama instance on Railway. This ensures the Llama 3.1 8B model runs securely inside the private network without public internet exposure.
+AI Coder Instruction: Use these configurations to deploy the private Ollama instance on Railway. This ensures the model runs securely inside the private network without public internet exposure.
 
 Note: Persistent volumes and private networking are **not** configured via static keys in `railway.toml` — they are provisioned as actual Railway resources (via the Railway MCP tools / dashboard: `create_volume`, service networking settings). `railway.toml` here only carries build-time settings. Do not add placeholder `nixPkgs` entries — remove the `[phases.setup]` block entirely unless a real Nix package is needed.
 
@@ -155,11 +155,14 @@ until ollama list >/dev/null 2>&1; do
   sleep 1
 done
 
-# Pull the 8B Llama 3.1 model. This is a no-op if the layer already
-# exists on the mounted volume, but still incurs a manifest check on
-# every boot -- acceptable for MVP, revisit if boot latency matters.
-echo "Pulling Llama 3.1 8B model..."
-ollama pull llama3.1
+# Pull llama3.2:3b (~2GB). This is a no-op if the layer already exists
+# on the mounted volume, but still incurs a manifest check on every
+# boot -- acceptable for MVP, revisit if boot latency matters. Sized to
+# fit Railway's default 5GB volume (resize is dashboard-only, not
+# scriptable via CLI/API) -- the originally-planned 8B model left no
+# headroom for the download's temp/partial blobs and failed with ENOSPC.
+echo "Pulling Llama 3.2 3B model..."
+ollama pull llama3.2:3b
 
 # Keep the container alive with the actual server process
 wait $OLLAMA_PID
