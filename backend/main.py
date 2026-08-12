@@ -1,9 +1,18 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.graph.workflow import audit_graph
 from app.models.schemas import AuditState
 
 app = FastAPI(title="AI Auditor Council")
+
+# Local dev only: the Next.js frontend runs on a different port.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
