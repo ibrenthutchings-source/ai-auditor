@@ -31,12 +31,22 @@ def hitl_evaluator_node(state: GraphState) -> dict:
     approval_rate = len(approved) / len(approvals)
     avg_time = calculate_time_to_approve(approvals)
 
-    max_rate, max_seconds = settings.HITL_RUBBER_STAMP_THRESHOLDS.get(
-        state["regulatory_context"], settings.HITL_RUBBER_STAMP_THRESHOLDS["default"]
-    )
-
+    context = state["regulatory_context"]
     findings: list[AuditFinding] = []
     errors: list[str] = []
+
+    if context in settings.HITL_RUBBER_STAMP_THRESHOLDS:
+        max_rate, max_seconds = settings.HITL_RUBBER_STAMP_THRESHOLDS[context]
+    else:
+        # Silently falling back here would mean a caller who mistypes (or
+        # hasn't yet configured) a regulatory_context gets evaluated
+        # against unrelated default thresholds without ever knowing --
+        # a false negative in a compliance product. Surface it instead.
+        max_rate, max_seconds = settings.HITL_RUBBER_STAMP_THRESHOLDS["default"]
+        errors.append(
+            f"hitl_evaluator_node: unknown regulatory_context '{context}', "
+            "falling back to 'default' HITL thresholds"
+        )
 
     # Deterministic pass: the compliance-critical, precisely-thresholded check.
     if avg_time is not None and approval_rate >= max_rate and avg_time <= max_seconds:

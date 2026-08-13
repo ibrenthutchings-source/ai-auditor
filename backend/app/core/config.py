@@ -26,6 +26,13 @@ class Settings:
 
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/ai_auditor")
 
+    # Comma-separated list of allowed frontend origins for CORS. Defaults to
+    # local Next.js dev only; set to the deployed frontend's origin(s) too
+    # once the frontend itself is hosted somewhere.
+    CORS_ALLOWED_ORIGINS: list[str] = [
+        o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()
+    ]
+
     # Per-regulatory-context HITL thresholds: (max approval_rate, max median_seconds_to_approve)
     # below which rubber-stamping is flagged. Not hardcoded in the agent itself.
     HITL_RUBBER_STAMP_THRESHOLDS: dict[str, tuple[float, float]] = {

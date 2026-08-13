@@ -15,7 +15,11 @@ def _load_rules() -> list[dict]:
 
 
 def _match_rule(finding: AuditFinding, rules: list[dict]) -> dict | None:
-    text = finding.description.lower()
+    # Match against both description and raw_evidence -- a finding's
+    # summary may not repeat the exact keyword that appears in the
+    # underlying evidence (e.g. a paraphrased LLM description over a
+    # verbatim jailbreak string in raw_evidence).
+    text = f"{finding.description} {finding.raw_evidence}".lower()
     for rule in rules:
         if any(tag in text for tag in rule["tags"]):
             return rule
@@ -49,4 +53,7 @@ def recommender_node(state: GraphState) -> dict:
         for rule, findings in matches.values()
     ]
 
-    return {"recommendations": recommendations, "current_status": "COMPLETE"}
+    # Don't stomp a FAILED status (e.g. intake_node rejected empty logs)
+    # with COMPLETE just because this node ran without error.
+    status = "FAILED" if state.get("current_status") == "FAILED" else "COMPLETE"
+    return {"recommendations": recommendations, "current_status": status}

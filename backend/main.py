@@ -1,19 +1,26 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.audit_store import persist_audit_record
+from app.core.config import settings
+from app.core.db import init_db
 from app.graph.workflow import audit_graph
 from app.models.schemas import AuditState
 from app.telemetry.sankey import build_sankey_links
 
 app = FastAPI(title="AI Auditor Council")
 
-# Local dev only: the Next.js frontend runs on a different port.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.CORS_ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    init_db()
 
 
 @app.get("/health")
@@ -40,7 +47,7 @@ def run_audit(payload: AuditState) -> AuditState:
         result["synthesized_findings"],
         result["recommendations"],
     )
-    return AuditState(
+    audit_state = AuditState(
         audit_id=result["audit_id"],
         target_system_logs=result["target_system_logs"],
         regulatory_context=result["regulatory_context"],
@@ -50,3 +57,5 @@ def run_audit(payload: AuditState) -> AuditState:
         errors=result["errors"],
         sankey_links=sankey_links,
     )
+    persist_audit_record(audit_state)
+    return audit_state
