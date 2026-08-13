@@ -38,6 +38,28 @@ def test_near_duplicates_merged_via_llm(stub_llm):
     assert result["synthesized_findings"][0].description == "merged description"
 
 
+def test_cross_agent_merge_is_rejected_even_if_llm_attempts_it(stub_llm):
+    # The LLM violates the "never merge across agents" instruction --
+    # code-level validation must catch this and fall back rather than
+    # trusting it.
+    illegal_merge_json = (
+        '{"findings": [{"agent_name": "HITL Agent, Security Agent", "risk_level": "CRITICAL", '
+        '"description": "combined finding", "affected_components": ["x"], '
+        '"raw_evidence": "combined"}]}'
+    )
+    stub_llm([illegal_merge_json])
+    state = {
+        "findings": [
+            _finding("HITL Agent", "rubber stamping issue"),
+            _finding("Security Agent", "prompt injection issue"),
+        ]
+    }
+    result = synthesis_node(state)
+    assert len(result["synthesized_findings"]) == 2
+    assert {f.agent_name for f in result["synthesized_findings"]} == {"HITL Agent", "Security Agent"}
+    assert any("cross-agent" in e for e in result["errors"])
+
+
 def test_llm_merge_failure_falls_back_to_exact_dedup(stub_llm):
     stub_llm(["not valid json"])
     state = {
