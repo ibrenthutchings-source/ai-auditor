@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.graph.workflow import audit_graph
 from app.models.schemas import AuditState
+from app.telemetry.sankey import build_sankey_links
 
 app = FastAPI(title="AI Auditor Council")
 
@@ -34,6 +35,11 @@ def run_audit(payload: AuditState) -> AuditState:
             "errors": [],
         }
     )
+    sankey_links = build_sankey_links(
+        result["regulatory_context"],
+        result["synthesized_findings"],
+        result["recommendations"],
+    )
     return AuditState(
         audit_id=result["audit_id"],
         target_system_logs=result["target_system_logs"],
@@ -42,4 +48,5 @@ def run_audit(payload: AuditState) -> AuditState:
         recommendations=result["recommendations"],
         current_status=result["current_status"],
         errors=result["errors"],
+        sankey_links=sankey_links,
     )

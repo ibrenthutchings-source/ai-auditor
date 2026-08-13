@@ -201,9 +201,8 @@ In your FastAPI/LangChain backend (`backend/app/core/config.py`), set the LLM Ba
 
 ### Phase 3: The Recommender Engine
 
-- Implement the `recommender_node`.
-- Connect it to a mock vector database (or local JSON file) containing known fixes (e.g., "If rubber-stamping detected -> output UI friction code").
+**Done.** `recommender_node` (`backend/app/recommender/engine.py`) matches each synthesized finding against a local JSON fix knowledge base (`backend/app/recommender/fixes.json`, keyed by keyword tags) — the "mock vector database" called for here didn't warrant a real pgvector-backed store for five static rules. Fixed the earlier duplicate-recommendation issue: recommendations are now grouped by matched rule id rather than emitted one-per-finding, so if two findings (e.g. an LLM-derived finding and a deterministic regex finding) flag the same underlying issue, they collapse into a single `Recommendation` whose `finding_reference` lists both source descriptions.
 
 ### Phase 4: Telemetry & API Polish
 
-- Format the final output of the FastAPI endpoint to include structure suitable for Sankey diagrams (source -> target -> value).
+**Done.** `/audit` now returns a `sankey_links: List[SankeyLink]` field (`backend/app/telemetry/sankey.py`), built as `regulatory_context -> agent_name -> risk_level -> fix_type` edges (or `-> "Unaddressed"` when no recommendation rule matched), aggregated by count. This is raw `{source, target, value}` triples suitable for feeding directly into a Sankey chart (e.g. React Flow) — no chart library wired into the frontend yet since none is installed; the minimal frontend just lists the links as text for now.

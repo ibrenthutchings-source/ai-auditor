@@ -27,6 +27,14 @@ class Recommendation(BaseModel):
     code_snippet: Optional[str] = Field(default=None, description="IaC or Python code, if applicable")
 
 
+class SankeyLink(BaseModel):
+    """One source -> target -> value edge for a Sankey/flow diagram."""
+
+    source: str
+    target: str
+    value: float
+
+
 class AuditState(BaseModel):
     """The shared state passed through the LangGraph workflow."""
 
@@ -37,3 +45,4 @@ class AuditState(BaseModel):
     recommendations: List[Recommendation] = Field(default_factory=list)
     current_status: str = "INITIALIZED"
     errors: List[str] = Field(default_factory=list)
+    sankey_links: List[SankeyLink] = Field(default_factory=list)

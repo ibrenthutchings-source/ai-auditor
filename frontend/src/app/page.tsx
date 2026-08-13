@@ -19,6 +19,12 @@ type Recommendation = {
   code_snippet: string | null;
 };
 
+type SankeyLink = {
+  source: string;
+  target: string;
+  value: number;
+};
+
 type AuditState = {
   audit_id: string;
   target_system_logs: Record<string, unknown>[];
@@ -27,6 +33,7 @@ type AuditState = {
   recommendations: Recommendation[];
   current_status: string;
   errors: string[];
+  sankey_links: SankeyLink[];
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
@@ -213,6 +220,28 @@ export default function Home() {
                       {r.code_snippet}
                     </pre>
                   )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-medium mb-3">
+              Flow ({result.sankey_links.length})
+            </h2>
+            <div className="space-y-1">
+              {result.sankey_links.length === 0 && (
+                <p className="text-sm text-slate-500">No flow data.</p>
+              )}
+              {result.sankey_links.map((l, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 text-xs text-slate-400 font-mono"
+                >
+                  <span className="text-slate-200">{l.source}</span>
+                  <span>→</span>
+                  <span className="text-slate-200">{l.target}</span>
+                  <span className="text-slate-600">({l.value})</span>
                 </div>
               ))}
             </div>

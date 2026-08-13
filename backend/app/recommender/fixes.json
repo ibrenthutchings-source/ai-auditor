@@ -1,0 +1,37 @@
+[
+  {
+    "id": "rubber_stamping",
+    "tags": ["rubber-stamping", "rubber stamping", "automation bias"],
+    "fix_type": "SOP",
+    "prescriptive_action": "Introduce mandatory review friction: require a minimum dwell time and a written justification field before an approval action is accepted for this decision category.",
+    "code_snippet": null
+  },
+  {
+    "id": "pii_exposure",
+    "tags": ["pii", "personally identifiable", "ssn", "credit card", "email"],
+    "fix_type": "CODE",
+    "prescriptive_action": "Add a redaction filter to the logging pipeline before persistence.",
+    "code_snippet": "import re\nPII_RE = re.compile(r'[\\w.+-]+@[\\w-]+\\.[\\w.-]+')\ndef redact(text: str) -> str:\n    return PII_RE.sub('[REDACTED_EMAIL]', text)\n"
+  },
+  {
+    "id": "prompt_injection",
+    "tags": ["prompt injection", "jailbreak", "ignore previous instructions", "system prompt"],
+    "fix_type": "PROMPT",
+    "prescriptive_action": "Add an input-sanitization layer that screens for known jailbreak patterns before the prompt reaches the model, and pin system instructions so user content cannot override them.",
+    "code_snippet": null
+  },
+  {
+    "id": "demographic_skew",
+    "tags": ["demographic", "bias", "skew", "disparate"],
+    "fix_type": "INFRASTRUCTURE",
+    "prescriptive_action": "Add outcome monitoring segmented by demographic group with automated alerting when disparity exceeds the configured threshold.",
+    "code_snippet": null
+  },
+  {
+    "id": "data_exfiltration",
+    "tags": ["exfiltration", "data leakage", "leak"],
+    "fix_type": "CODE",
+    "prescriptive_action": "Restrict outbound tool/network access from the agent's execution context and add egress logging for review.",
+    "code_snippet": null
+  }
+]
